@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 
 class CartController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $cart = session()->get('cart', []);
         $cartItems = [];
@@ -16,7 +16,8 @@ class CartController extends Controller
         foreach ($cart as $productId => $quantity) {
             $product = Product::find($productId);
             if ($product) {
-                $itemTotal = ($product->sale_price ?? $product->price) * $quantity;
+                $price = $product->sale_price ?? $product->price;
+                $itemTotal = $price * $quantity;
                 $cartItems[] = [
                     'product' => $product,
                     'quantity' => $quantity,
@@ -24,6 +25,27 @@ class CartController extends Controller
                 ];
                 $total += $itemTotal;
             }
+        }
+
+        // Return JSON for cart drawer AJAX requests
+        if ($request->ajax() || $request->wantsJson()) {
+            $drawerItems = array_map(function ($item) {
+                return [
+                    'id' => $item['product']->id,
+                    'name' => $item['product']->name,
+                    'price' => number_format($item['product']->sale_price ?? $item['product']->price, 2),
+                    'quantity' => $item['quantity'],
+                    'total' => number_format($item['total'], 2),
+                    'image' => $item['product']->image ? asset('storage/' . $item['product']->image) : null,
+                    'slug' => $item['product']->slug,
+                ];
+            }, $cartItems);
+
+            return response()->json([
+                'cartItems' => $drawerItems,
+                'total' => number_format($total, 2),
+                'count' => array_sum($cart),
+            ]);
         }
 
         return view('frontend.cart', compact('cartItems', 'total'));
@@ -46,7 +68,7 @@ class CartController extends Controller
 
         session()->put('cart', $cart);
 
-        if ($request->ajax()) {
+        if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Product added to cart!',
@@ -70,11 +92,18 @@ class CartController extends Controller
             session()->put('cart', $cart);
         }
 
-        if ($request->ajax()) {
+        $total = 0;
+        foreach ($cart as $pId => $qty) {
+            $p = Product::find($pId);
+            if ($p) $total += ($p->sale_price ?? $p->price) * $qty;
+        }
+
+        if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Cart updated!',
                 'cartCount' => array_sum($cart),
+                'total' => number_format($total, 2),
             ]);
         }
 
@@ -90,11 +119,18 @@ class CartController extends Controller
             session()->put('cart', $cart);
         }
 
-        if ($request->ajax()) {
+        $total = 0;
+        foreach ($cart as $pId => $qty) {
+            $p = Product::find($pId);
+            if ($p) $total += ($p->sale_price ?? $p->price) * $qty;
+        }
+
+        if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Product removed from cart!',
                 'cartCount' => array_sum($cart),
+                'total' => number_format($total, 2),
             ]);
         }
 

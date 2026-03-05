@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
 use App\Models\Page;
 use App\Models\Product;
 use App\Models\Setting;
@@ -11,6 +12,7 @@ class HomeController extends Controller
     public function index()
     {
         $page = Page::where('slug', 'home')->with('activeSections')->first();
+        $categories = Category::where('is_active', true)->orderBy('name')->get();
         $featuredProducts = Product::where('is_active', true)
             ->where('is_featured', true)
             ->take(8)
@@ -20,7 +22,7 @@ class HomeController extends Controller
             ->take(8)
             ->get();
 
-        return view('frontend.home', compact('page', 'featuredProducts', 'latestProducts'));
+        return view('frontend.home', compact('page', 'categories', 'featuredProducts', 'latestProducts'));
     }
 
     public function about()
